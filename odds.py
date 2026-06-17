@@ -6,6 +6,7 @@ regions = ['br', 'us', 'eu', 'au']
 all_odds = []
 
 for region in regions:
+  all_odds = []
   url_with_region = url.format(region)
 
   response = requests.get(url_with_region)
