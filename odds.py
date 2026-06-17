@@ -6,9 +6,8 @@ regions = ['br', 'us', 'eu', 'au']
 all_odds = []
 
 for region in regions:
-  all_odds = []
+  # accumulate odds across regions instead of reinitializing
   url_with_region = url.format(region)
-
   response = requests.get(url_with_region)
   if response.status_code == 200:
       data = response.json()
@@ -30,3 +29,5 @@ for region in regions:
                               match_info['away_odds'] = outcome['price']
           
           all_odds.append(match_info)
+all_odds_df = pd.DataFrame(all_odds)
+print(all_odds_df)
