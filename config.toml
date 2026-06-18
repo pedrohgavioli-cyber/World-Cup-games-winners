@@ -1,0 +1,15 @@
+[theme]
+# Cor primária (azul escuro da bandeira do Brasil)
+primaryColor = "#002776"
+
+# Cor de fundo principal (cinza escuro/quase preto para um tema escuro)
+backgroundColor = "#1A1A1A"
+
+# Cor de fundo secundária (verde escuro da bandeira do Brasil)
+secondaryBackgroundColor = "#003300"
+
+# Cor do texto (branco para boa legibilidade)
+textColor = "#FFFFFF"
+
+# Fonte (opcional, sans serif é uma boa escolha para legibilidade)
+font = "sans serif"
