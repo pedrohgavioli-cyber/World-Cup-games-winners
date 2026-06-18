@@ -5,11 +5,22 @@ from data import obter_estatisticas_historicas
 from odds import obter_proximas_partidas
 from predict import prever_vencedores
 
+
+@st.cache_data
+def get_historical_data_cached(file_path):
+    # Cache do carregamento e processamento do CSV histórico
+    return obter_estatisticas_historicas(file_path)
+
+@st.cache_data(ttl=300) # Cache por 5 minutos
+def get_odds_cached():
+    # Cache da chamada à API de odds
+    return obter_proximas_partidas()
+
 def main():
     st.title("Previsão de Vencedores da Copa do Mundo")
     
     with st.spinner("Buscando dados históricos..."):
-        dados_historicos = obter_estatisticas_historicas('results.csv')
+        dados_historicos = get_historical_data_cached('results.csv')
 
     st.subheader("Simular Confronto Específico")
     # Extrai os nomes únicos de todos os times para os selectboxes
@@ -63,7 +74,7 @@ def main():
     st.markdown("---")
     st.subheader("Próximas Partidas Oficiais (API de Odds)")
     with st.spinner("Buscando próximas partidas e odds..."):
-        proximos_jogos = obter_proximas_partidas()
+        proximos_jogos = get_odds_cached()
 
     if not proximos_jogos.empty:
         df_previsoes_finais = prever_vencedores(dados_historicos, proximos_jogos)
