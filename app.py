@@ -13,7 +13,7 @@ def main():
 
     st.subheader("Simular Confronto Específico")
     # Extrai os nomes únicos de todos os times para os selectboxes
-    teams = list(pd.concat([historical_data['team1'], historical_data['team2']]).unique())
+    teams = pd.concat([historical_data['team1'], historical_data['team2']]).unique().tolist()
     teams.sort()
     
     banca = st.number_input("Sua Banca Atual (R$)", min_value=1.0, value=10000.0, step=1.0)
