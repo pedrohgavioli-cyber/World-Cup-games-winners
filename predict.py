@@ -1,99 +1,99 @@
 import pandas as pd
 import numpy as np
-from data import get_historical_stats
-from odds import get_upcoming_matches
+from data import obter_estatisticas_historicas
+from odds import obter_proximas_partidas
 
-def predict_winners(historical_stats, upcoming_matches):
+def prever_vencedores(estatisticas_historicas, proximas_partidas):
 
-    predictions = []
+    previsoes = []
 
-    for index, match in upcoming_matches.iterrows():
-        home_team, away_team = match['game'].split(' vs ')
+    for indice, partida in proximas_partidas.iterrows():
+        time_casa, time_visitante = partida['jogo'].split(' vs ')
 
         # Para encontrar o histórico, normalizamos a ordem dos times
-        team1 = min(home_team, away_team)
-        team2 = max(home_team, away_team)
+        time1 = min(time_casa, time_visitante)
+        time2 = max(time_casa, time_visitante)
 
         # Busca o histórico do confronto
-        matchup_history = historical_stats[
-            (historical_stats['team1'] == team1) &
-            (historical_stats['team2'] == team2)
+        historico_confronto = estatisticas_historicas[
+            (estatisticas_historicas['time1'] == time1) &
+            (estatisticas_historicas['time2'] == time2)
         ]
 
-        prediction = "Sem dados históricos"
-        home_prob = 0.0
-        away_prob = 0.0
-        draw_prob = 0.0
+        previsao = "Sem dados históricos"
+        prob_casa = 0.0
+        prob_visitante = 0.0
+        prob_empate = 0.0
 
-        if not matchup_history.empty:
-            hist_team1_win = matchup_history['team1_win'].iloc[0]
-            hist_team2_win = matchup_history['team2_win'].iloc[0]
-            hist_draw = matchup_history['draw'].iloc[0]
+        if not historico_confronto.empty:
+            hist_vitoria_time1 = historico_confronto['vitoria_time1'].iloc[0]
+            hist_vitoria_time2 = historico_confronto['vitoria_time2'].iloc[0]
+            hist_empate = historico_confronto['empate'].iloc[0]
 
             # Determina qual time histórico corresponde ao time da casa/visitante
-            if team1 == home_team:
-                home_prob = hist_team1_win
-                away_prob = hist_team2_win
+            if time1 == time_casa:
+                prob_casa = hist_vitoria_time1
+                prob_visitante = hist_vitoria_time2
             else:
-                home_prob = hist_team2_win
-                away_prob = hist_team1_win
+                prob_casa = hist_vitoria_time2
+                prob_visitante = hist_vitoria_time1
             
-            draw_prob = hist_draw
+            prob_empate = hist_empate
 
             # Lógica de previsão baseada no resultado histórico mais frequente
-            if home_prob > away_prob and home_prob > draw_prob:
-                prediction = home_team
-            elif away_prob > home_prob and away_prob > draw_prob:
-                prediction = away_team
-            elif draw_prob > home_prob and draw_prob > away_prob:
-                prediction = "Empate"
+            if prob_casa > prob_visitante and prob_casa > prob_empate:
+                previsao = time_casa
+            elif prob_visitante > prob_casa and prob_visitante > prob_empate:
+                previsao = time_visitante
+            elif prob_empate > prob_casa and prob_empate > prob_visitante:
+                previsao = "Empate"
             else:
-                prediction = "Empate (probabilidades iguais)"
+                previsao = "Empate (probabilidades iguais)"
         
         # Lógica do sugeridor de apostas (Valor Esperado / Expected Value)
-        suggested_bet = "Sem dados de odds"
-        kelly_fraction = 0.0
+        aposta_sugerida = "Sem dados de odds"
+        fracao_kelly = 0.0
 
-        if not np.isnan(match['avg_home_odds']) and not np.isnan(match['avg_away_odds']):
-            home_ev = (home_prob * match['avg_home_odds']) - 1
-            away_ev = (away_prob * match['avg_away_odds']) - 1
+        if not np.isnan(partida['media_odds_casa']) and not np.isnan(partida['media_odds_visitante']):
+            ev_casa = (prob_casa * partida['media_odds_casa']) - 1
+            ev_visitante = (prob_visitante * partida['media_odds_visitante']) - 1
             
-            if home_ev > 0 and home_ev >= away_ev:
-                kelly_fraction = home_ev / (match['avg_home_odds'] - 1)
-                suggested_bet = f"Apostar: {home_team} (EV: +{home_ev*100:.1f}% | Kelly: {kelly_fraction*100:.1f}%)"
+            if ev_casa > 0 and ev_casa >= ev_visitante:
+                fracao_kelly = ev_casa / (partida['media_odds_casa'] - 1)
+                aposta_sugerida = f"Apostar: {time_casa} (EV: +{ev_casa*100:.1f}% | Kelly: {fracao_kelly*100:.1f}%)"
 
-            elif away_ev > 0 and away_ev > home_ev:
-                kelly_fraction = away_ev / (match['avg_away_odds'] - 1)
-                suggested_bet = f"Apostar: {away_team} (EV: +{away_ev*100:.1f}% | Kelly: {kelly_fraction*100:.1f}%)"
+            elif ev_visitante > 0 and ev_visitante > ev_casa:
+                fracao_kelly = ev_visitante / (partida['media_odds_visitante'] - 1)
+                aposta_sugerida = f"Apostar: {time_visitante} (EV: +{ev_visitante*100:.1f}% | Kelly: {fracao_kelly*100:.1f}%)"
             else:
-                suggested_bet = "Nenhuma aposta de valor"
+                aposta_sugerida = "Nenhuma aposta de valor"
 
-        predictions.append({
-            'game': match['game'],
-            'commence_time': match['commence_time'],
-            'avg_home_odds': match['avg_home_odds'],
-            'avg_away_odds': match['avg_away_odds'],
-            'predicted_winner': prediction,
-            'home_prob': home_prob,
-            'away_prob': away_prob,
-            'draw_prob': draw_prob,
-            'suggested_bet': suggested_bet,
-            'kelly_fraction': kelly_fraction
+        previsoes.append({
+            'jogo': partida['jogo'],
+            'horario_inicio': partida['horario_inicio'],
+            'media_odds_casa': partida['media_odds_casa'],
+            'media_odds_visitante': partida['media_odds_visitante'],
+            'vencedor_previsto': previsao,
+            'prob_casa': prob_casa,
+            'prob_visitante': prob_visitante,
+            'prob_empate': prob_empate,
+            'aposta_sugerida': aposta_sugerida,
+            'fracao_kelly': fracao_kelly
         })
 
-    return pd.DataFrame(predictions)
+    return pd.DataFrame(previsoes)
 
 if __name__ == '__main__':
     print("Buscando dados históricos...")
-    historical_data = get_historical_stats('results.csv')
+    dados_historicos = obter_estatisticas_historicas('results.csv')
 
     print("Buscando próximas partidas e odds...")
-    upcoming_games = get_upcoming_matches()
+    proximos_jogos = obter_proximas_partidas()
 
-    if not upcoming_games.empty:
+    if not proximos_jogos.empty:
         print("Gerando previsões...")
-        final_predictions = predict_winners(historical_data, upcoming_games)
+        previsoes_finais = prever_vencedores(dados_historicos, proximos_jogos)
         print("\n--- Previsões das Partidas ---")
-        print(final_predictions.to_string())
+        print(previsoes_finais.to_string())
     else:
         print("\nNenhuma partida futura encontrada para prever.")

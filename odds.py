@@ -2,69 +2,70 @@ import requests
 import pandas as pd
 import numpy as np
 
-def get_upcoming_matches():
+def obter_proximas_partidas():
     
-    API_KEY = '805fcc42035ee90840f0bdc5cb741c2b'
-    URL_TEMPLATE = 'https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey={}&regions={}&markets=h2h,spreads&oddsFormat=decimal'
-    REGIONS = ['br', 'us', 'eu', 'au']
+    CHAVE_API = '805fcc42035ee90840f0bdc5cb741c2b'
+    TEMPLATE_URL = 'https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey={}&regions={}&markets=h2h,spreads&oddsFormat=decimal'
+    REGIOES = ['br', 'us', 'eu', 'au']
 
-    unique_matches_data = {}
+    dados_partidas_unicas = {}
 
-    for region in REGIONS:
-        url_with_region = URL_TEMPLATE.format(API_KEY, region)
+    for regiao in REGIOES:
+        url_com_regiao = TEMPLATE_URL.format(CHAVE_API, regiao)
         try:
-            response = requests.get(url_with_region)
-            response.raise_for_status()
-            data = response.json()
+            resposta = requests.get(url_com_regiao)
+            resposta.raise_for_status()
+            dados = resposta.json()
 
-            for match in data:
-                match_id = match['id']
-                if match_id not in unique_matches_data:
-                    unique_matches_data[match_id] = {
-                        'home_team': match['home_team'],
-                        'away_team': match['away_team'],
-                        'commence_time': match['commence_time'],
-                        'bookmakers': []
+            for partida in dados:
+                id_partida = partida['id']
+                if id_partida not in dados_partidas_unicas:
+                    dados_partidas_unicas[id_partida] = {
+                        'time_casa': partida['home_team'],
+                        'time_visitante': partida['away_team'],
+                        'horario_inicio': partida['commence_time'],
+                        'casas_de_apostas': []
                     }
-                unique_matches_data[match_id]['bookmakers'].extend(match['bookmakers'])
+                dados_partidas_unicas[id_partida]['casas_de_apostas'].extend(partida['bookmakers'])
         except requests.exceptions.RequestException as e:
-            print(f"Erro ao buscar dados para a região {region}: {e}")
+            print(f"Erro ao buscar dados para a região {regiao}: {e}")
             continue
 
-    final_odds_list = []
+    lista_odds_finais = []
 
-    for match_id, match_data in unique_matches_data.items():
-        home_odds_list = []
-        away_odds_list = []
+    for id_partida, dados_partida in dados_partidas_unicas.items():
+        lista_odds_casa = []
+        lista_odds_visitante = []
 
-        for bookmaker in match_data['bookmakers']:
-            for market in bookmaker['markets']:
-                if market['key'] == 'h2h':
-                    for outcome in market['outcomes']:
-                        if outcome['name'] == match_data['home_team']:
-                            home_odds_list.append(outcome['price'])
-                        elif outcome['name'] == match_data['away_team']:
-                            away_odds_list.append(outcome['price'])
+        for casa_de_aposta in dados_partida['casas_de_apostas']:
+            for mercado in casa_de_aposta['markets']:
+                if mercado['key'] == 'h2h':
+                    for resultado in mercado['outcomes']:
+                        if resultado['name'] == dados_partida['time_casa']:
+                            lista_odds_casa.append(resultado['price'])
+                        elif resultado['name'] == dados_partida['time_visitante']:
+                            lista_odds_visitante.append(resultado['price'])
 
-        avg_home_odds = np.mean(home_odds_list) if home_odds_list else np.nan
-        avg_away_odds = np.mean(away_odds_list) if away_odds_list else np.nan
+        media_odds_casa = np.mean(lista_odds_casa) if lista_odds_casa else np.nan
+        media_odds_visitante = np.mean(lista_odds_visitante) if lista_odds_visitante else np.nan
 
-        match_info = {
-            'home_team': match_data['home_team'],
-            'away_team': match_data['away_team'],
-            'commence_time': match_data['commence_time'],
-            'avg_home_odds': avg_home_odds,
-            'avg_away_odds': avg_away_odds
+        info_partida = {
+            'time_casa': dados_partida['time_casa'],
+            'time_visitante': dados_partida['time_visitante'],
+            'horario_inicio': dados_partida['horario_inicio'],
+            'media_odds_casa': media_odds_casa,
+            'media_odds_visitante': media_odds_visitante
         }
-        final_odds_list.append(match_info)
+        lista_odds_finais.append(info_partida)
 
 
-    all_odds_df = pd.DataFrame(final_odds_list)
-    all_odds_df['game'] = all_odds_df['home_team'] + ' vs ' + all_odds_df['away_team']
-    all_odds_df.drop(['home_team', 'away_team'], axis=1, inplace=True)
-    all_odds_df = all_odds_df.sort_values(by='commence_time')
-    return all_odds_df
+    df_todas_odds = pd.DataFrame(lista_odds_finais)
+    if not df_todas_odds.empty:
+        df_todas_odds['jogo'] = df_todas_odds['time_casa'] + ' vs ' + df_todas_odds['time_visitante']
+        df_todas_odds.drop(['time_casa', 'time_visitante'], axis=1, inplace=True)
+        df_todas_odds = df_todas_odds.sort_values(by='horario_inicio')
+    return df_todas_odds
 
 if __name__ == '__main__':
-    upcoming_matches = get_upcoming_matches()
-    print(upcoming_matches.head())
+    proximas_partidas = obter_proximas_partidas()
+    print(proximas_partidas.head())
