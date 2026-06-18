@@ -26,9 +26,14 @@ def get_historical_stats(file_path='results.csv'):
         data_matchups['home_score']
     )
 
+    # Cria colunas binárias (0 ou 1) para cada resultado possível
+    data_matchups['team1_win'] = (data_matchups['goals_team1'] > data_matchups['goals_team2']).astype(int)
+    data_matchups['team2_win'] = (data_matchups['goals_team1'] < data_matchups['goals_team2']).astype(int)
+    data_matchups['draw'] = (data_matchups['goals_team1'] == data_matchups['goals_team2']).astype(int)
+
     confronto_media = (
         data_matchups
-        .groupby(['team1', 'team2'])[['goals_team1', 'goals_team2']]
+        .groupby(['team1', 'team2'])[['goals_team1', 'goals_team2', 'team1_win', 'team2_win', 'draw']]
         .mean()
         .reset_index()
     )
