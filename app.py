@@ -8,8 +8,8 @@ from predict import prever_vencedores
 def main():
     st.title("Previsão de Vencedores da Copa do Mundo")
     
-    st.write("Buscando dados históricos...")
-    dados_historicos = obter_estatisticas_historicas('results.csv')
+    with st.spinner("Buscando dados históricos..."):
+        dados_historicos = obter_estatisticas_historicas('results.csv')
 
     st.subheader("Simular Confronto Específico")
     # Extrai os nomes únicos de todos os times para os selectboxes
@@ -62,8 +62,8 @@ def main():
 
     st.markdown("---")
     st.subheader("Próximas Partidas Oficiais (API de Odds)")
-    st.write("Buscando próximas partidas e odds...")
-    proximos_jogos = obter_proximas_partidas()
+    with st.spinner("Buscando próximas partidas e odds..."):
+        proximos_jogos = obter_proximas_partidas()
 
     if not proximos_jogos.empty:
         df_previsoes_finais = prever_vencedores(dados_historicos, proximos_jogos)
