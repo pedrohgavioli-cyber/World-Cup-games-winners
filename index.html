@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsão de Partidas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 960px;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: white;
+        }
+        #loader {
+            display: none; /* Oculto por padrão */
+        }
+        #prediction-result-card {
+            display: none; /* Oculto por padrão */
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div class="text-center mb-4">
+            <h1 class="display-5">Previsão de Vencedores</h1>
+            <p class="lead">Use o modelo estatístico para simular confrontos ou analisar próximas partidas.</p>
+        </div>
+
+        <!-- Seção de Simulação Manual -->
+        <div class="card mb-5">
+            <h5 class="card-header">Simular Confronto Específico</h5>
+            <div class="card-body">
+                <form method="POST" action="/">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="time_casa" class="form-label">Time Casa</label>
+                            <select name="time_casa" id="time_casa" class="form-select">
+                                {% for time in times %}
+                                    <option value="{{ time }}" {% if time == time_casa %}selected{% endif %}>{{ time }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="odds_casa" class="form-label">Odds Casa</label>
+                            <input type="number" name="odds_casa" id="odds_casa" class="form-control" value="{{ odds_casa }}" step="0.01" min="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="time_visitante" class="form-label">Time Visitante</label>
+                            <select name="time_visitante" id="time_visitante" class="form-select">
+                                {% for time in times %}
+                                    <option value="{{ time }}" {% if time == time_visitante %}selected{% endif %}>{{ time }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="odds_visitante" class="form-label">Odds Visitante</label>
+                            <input type="number" name="odds_visitante" id="odds_visitante" class="form-control" value="{{ odds_visitante }}" step="0.01" min="1">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Prever</button>
+                        </div>
+                    </div>
+                </form>
+                {% if erro %}
+                    <div class="alert alert-danger mt-3">{{ erro }}</div>
+                {% endif %}
+                {% if resultado_simulacao %}
+                    <div class="alert alert-success mt-3">
+                        <h4 class="alert-heading">Resultado da Simulação: {{ resultado_simulacao.time_casa }} vs {{ resultado_simulacao.time_visitante }}</h4>
+                        <p><strong>Vencedor Previsto:</strong> {{ resultado_simulacao.vencedor }}</p>
+                        <hr>
+                        <p><strong>Probabilidades:</strong> Casa: {{ "%.1f"|format(resultado_simulacao.prob_casa_pct) }}% | Empate: {{ "%.1f"|format(resultado_simulacao.prob_empate_pct) }}% | Visitante: {{ "%.1f"|format(resultado_simulacao.prob_visitante_pct) }}%</p>
+                        <p><strong>Gols Esperados (xG):</strong> {{ resultado_simulacao.time_casa }}: {{ "%.2f"|format(resultado_simulacao.xg_casa) }} | {{ resultado_simulacao.time_visitante }}: {{ "%.2f"|format(resultado_simulacao.xg_visitante) }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Seção de Próximas Partidas -->
+        <div class="card">
+            <h5 class="card-header">Analisar Próximas Partidas</h5>
+            <div class="card-body">
+                {% if proximos_jogos %}
+                    <div class="mb-3">
+                        <label for="match-selector" class="form-label">Selecione a Partida:</label>
+                        <select id="match-selector" class="form-select">
+                            <option value="" selected disabled>Escolha uma partida para analisar...</option>
+                            {% for jogo in proximos_jogos %}
+                                <option value="{{ loop.index0 }}">{{ jogo.jogo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Indicador de Carregamento -->
+                    <div id="loader" class="text-center my-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <p>Calculando previsões...</p>
+                    </div>
+
+                    <!-- Card de Resultados Dinâmico -->
+                    <div id="prediction-result-card" class="card mt-3">
+                        <div class="card-body">
+                            <h5 class="card-title" id="prediction-title"></h5>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h6>Vitória Casa</h6>
+                                    <p class="fs-4" id="prob-casa"></p>
+                                </div>
+                                <div class="col-4">
+                                    <h6>Empate</h6>
+                                    <p class="fs-4" id="prob-empate"></p>
+                                </div>
+                                <div class="col-4">
+                                    <h6>Vitória Visitante</h6>
+                                    <p class="fs-4" id="prob-visitante"></p>
+                                </div>
+                            </div>
+                            <hr>
+                            <h6>Placares Mais Prováveis:</h6>
+                            <ul class="list-group list-group-flush" id="top-scores">
+                                <!-- Placares serão inseridos aqui via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">Nenhuma próxima partida encontrada para análise.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Armazena os dados das próximas partidas passados pelo Flask
+        const proximosJogos = {{ proximos_jogos|tojson }};
+
+        document.getElementById('match-selector').addEventListener('change', function() {
+            const selectedIndex = this.value;
+            if (!selectedIndex) return;
+
+            const selectedMatch = proximosJogos[selectedIndex];
+            const loader = document.getElementById('loader');
+            const resultCard = document.getElementById('prediction-result-card');
+
+            // Mostra o loader e esconde o card de resultado anterior
+            loader.style.display = 'block';
+            resultCard.style.display = 'none';
+
+            // Chama o endpoint de previsão no backend
+            fetch('/predict_match', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(selectedMatch),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Falha na requisição ao servidor.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.erro) {
+                    throw new Error(data.erro);
+                }
+                // Esconde o loader
+                loader.style.display = 'none';
+
+                // Popula o card de resultados com os dados recebidos
+                document.getElementById('prediction-title').innerText = `Previsão para: ${data.jogo}`;
+                document.getElementById('prob-casa').innerText = `${(data.prob_casa * 100).toFixed(1)}%`;
+                document.getElementById('prob-empate').innerText = `${(data.prob_empate * 100).toFixed(1)}%`;
+                document.getElementById('prob-visitante').innerText = `${(data.prob_visitante * 100).toFixed(1)}%`;
+
+                const topScoresList = document.getElementById('top-scores');
+                topScoresList.innerHTML = ''; // Limpa placares anteriores
+                data.placares_mais_provaveis.forEach(score => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.innerText = `Placar: ${score.placar}`;
+                    
+                    const probabilitySpan = document.createElement('span');
+                    probabilitySpan.className = 'badge bg-primary rounded-pill';
+                    probabilitySpan.innerText = `${(score.probabilidade * 100).toFixed(2)}%`;
+                    
+                    listItem.appendChild(probabilitySpan);
+                    topScoresList.appendChild(listItem);
+                });
+
+                // Mostra o card de resultados
+                resultCard.style.display = 'block';
+            })
+            .catch(error => {
+                loader.style.display = 'none';
+                alert(`Erro ao buscar previsão: ${error.message}`);
+            });
+        });
+    </script>
+</body>
+</html>

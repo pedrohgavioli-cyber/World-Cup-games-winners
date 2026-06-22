@@ -92,7 +92,7 @@ def prever_vencedores(dados_modelo: dict, proximas_partidas: pd.DataFrame) -> pd
             'xg_visitante': xg_visitante,
             'aposta_sugerida': aposta_sugerida,
             'fracao_kelly': fracao_kelly,
-            'placares_provaveis': placares_provaveis
+            'placares_provaveis': json.dumps(placares_provaveis)
         })
 
     return pd.DataFrame(previsoes)

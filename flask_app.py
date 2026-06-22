@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
+import json
 import time
 from data_prep import preparar_estatisticas_equipes
 from odds import obter_proximas_partidas
@@ -99,34 +100,6 @@ def index():
     # Get upcoming matches and odds
     proximos_jogos = get_odds_cached()
 
-    tabela_proximos_jogos = []
-    if not proximos_jogos.empty:
-        df_previsoes_finais = prever_vencedores(dados_historicos, proximos_jogos)
-
-        df_exibicao = df_previsoes_finais.copy()
-        df_exibicao['prob_casa'] = (df_exibicao['prob_casa'] * 100).apply(lambda x: f"{x:.1f}%")
-        df_exibicao['prob_visitante'] = (df_exibicao['prob_visitante'] * 100).apply(lambda x: f"{x:.1f}%")
-        df_exibicao['prob_empate'] = (df_exibicao['prob_empate'] * 100).apply(lambda x: f"{x:.1f}%")
-
-        df_exibicao = df_exibicao.drop(columns=['fracao_kelly', 'placares_provaveis'])
-
-        df_exibicao = df_exibicao.rename(columns={
-            'jogo': 'Jogo',
-            'horario_inicio': 'Horário de Início',
-            'media_odds_casa': 'Média Odds Casa',
-            'media_odds_visitante': 'Média Odds Visitante',
-            'vencedor_previsto': 'Vencedor Previsto',
-            'prob_casa': 'Probabilidade Casa',
-            'prob_visitante': 'Probabilidade Visitante',
-            'prob_empate': 'Probabilidade Empate',
-            'xg_casa': 'xG Casa',
-            'xg_visitante': 'xG Visitante',
-            'aposta_sugerida': 'Aposta Sugerida'
-        })
-
-        # Convert to list of dicts for template
-        tabela_proximos_jogos = df_exibicao.to_dict('records')
-
     return render_template('index.html',
                            times=times,
                            banca=banca,
@@ -136,7 +109,43 @@ def index():
                            odds_visitante=odds_visitante,
                            resultado_simulacao=resultado_simulacao,
                            erro=erro,
-                           tabela_proximos_jogos=tabela_proximos_jogos)
+                           proximos_jogos=proximos_jogos.to_dict('records'))
+
+@app.route('/predict_match', methods=['POST'])
+def predict_match():
+    """
+    Endpoint para prever uma única partida sob demanda.
+    Recebe os dados da partida via JSON e retorna a previsão.
+    """
+    try:
+        match_data = request.json
+        if not match_data or 'jogo' not in match_data:
+            return jsonify({'erro': 'Dados da partida ausentes.'}), 400
+
+        dados_historicos = get_historical_data_cached('results.csv')
+
+        # Cria um DataFrame para a partida selecionada
+        partida_df = pd.DataFrame([match_data])
+
+        # Executa a previsão para esta única partida
+        previsao_df = prever_vencedores(dados_historicos, partida_df)
+
+        if previsao_df.empty:
+            return jsonify({'erro': 'Não foi possível gerar a previsão.'}), 500
+
+        # Converte o resultado para um dicionário e prepara para JSON
+        resultado = previsao_df.iloc[0].to_dict()
+
+        # O campo 'placares_provaveis' já é uma string JSON, então precisamos decodificá-lo
+        # para que o jsonify possa codificá-lo corretamente no objeto de resposta.
+        if 'placares_provaveis' in resultado and isinstance(resultado['placares_provaveis'], str):
+            resultado['placares_provaveis'] = json.loads(resultado['placares_provaveis'])
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({'erro': f'Ocorreu um erro no servidor: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
