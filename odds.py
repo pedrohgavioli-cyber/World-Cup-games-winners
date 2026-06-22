@@ -6,7 +6,7 @@ def obter_proximas_partidas():
     
     CHAVE_API = '805fcc42035ee90840f0bdc5cb741c2b'
     TEMPLATE_URL = 'https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey={}&regions={}&markets=h2h,spreads&oddsFormat=decimal'
-    REGIOES = ['br', 'us', 'eu', 'au']
+    REGIOES = ['us', 'eu', 'au']
 
     dados_partidas_unicas = {}
 
