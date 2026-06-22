@@ -86,7 +86,7 @@
 
         <div class="card">
             <div class="card-body">
-                <h3 class="card-title">Simular Confronto Específico</h3>
+                <h3 class="card-title">Simular Confronto Específico (Modelo Poisson)</h3>
 
                 {% if erro %}
                 <div class="alert alert-warning" role="alert">
@@ -145,11 +145,11 @@
                     </div>
 
                     <div class="alert alert-info">
-                        <h5><strong>Probabilidades Históricas:</strong></h5>
+                        <h5><strong>Probabilidades e Estatísticas de xG:</strong></h5>
                         <ul>
-                            <li>Vitória do <strong>{{ resultado_simulacao.time_casa }}</strong>: {{ "%.1f"|format(resultado_simulacao.prob_casa_pct) }}%</li>
+                            <li>Gols Esperados (xG) <strong>{{ resultado_simulacao.time_casa }}</strong>: {{ "%.2f"|format(resultado_simulacao.xg_casa) }} (Prob. Vitória: {{ "%.1f"|format(resultado_simulacao.prob_casa_pct) }}%)</li>
                             <li><strong>Empate</strong>: {{ "%.1f"|format(resultado_simulacao.prob_empate_pct) }}%</li>
-                            <li>Vitória do <strong>{{ resultado_simulacao.time_visitante }}</strong>: {{ "%.1f"|format(resultado_simulacao.prob_visitante_pct) }}%</li>
+                            <li>Gols Esperados (xG) <strong>{{ resultado_simulacao.time_visitante }}</strong>: {{ "%.2f"|format(resultado_simulacao.xg_visitante) }} (Prob. Vitória: {{ "%.1f"|format(resultado_simulacao.prob_visitante_pct) }}%)</li>
                         </ul>
                     </div>
 
@@ -171,19 +171,21 @@
             <h3>Próximas Partidas Oficiais (API de Odds)</h3>
 
             {% if tabela_proximos_jogos %}
-            <p>Previsões para as próximas partidas:</p>
+            <p>Previsões para as próximas partidas baseadas no Modelo Poisson:</p>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
                             <th>Jogo</th>
-                            <th>Horário de Início</th>
-                            <th>Média Odds Casa</th>
-                            <th>Média Odds Visitante</th>
-                            <th>Vencedor Previsto</th>
-                            <th>Probabilidade Casa</th>
-                            <th>Probabilidade Visitante</th>
-                            <th>Probabilidade Empate</th>
+                            <th>Horário</th>
+                            <th>Odds Casa</th>
+                            <th>Odds Vis.</th>
+                            <th>xG Casa</th>
+                            <th>xG Vis.</th>
+                            <th>Previsto</th>
+                            <th>Prob. Casa</th>
+                            <th>Prob. Vis.</th>
+                            <th>Prob. Empate</th>
                             <th>Aposta Sugerida</th>
                         </tr>
                     </thead>
@@ -194,6 +196,8 @@
                             <td>{{ jogo['Horário de Início'] }}</td>
                             <td>{{ "%.2f"|format(jogo['Média Odds Casa']) if jogo['Média Odds Casa'] == jogo['Média Odds Casa'] else 'N/A' }}</td>
                             <td>{{ "%.2f"|format(jogo['Média Odds Visitante']) if jogo['Média Odds Visitante'] == jogo['Média Odds Visitante'] else 'N/A' }}</td>
+                            <td>{{ "%.2f"|format(jogo['xG Casa']) }}</td>
+                            <td>{{ "%.2f"|format(jogo['xG Visitante']) }}</td>
                             <td>{{ jogo['Vencedor Previsto'] }}</td>
                             <td>{{ jogo['Probabilidade Casa'] }}</td>
                             <td>{{ jogo['Probabilidade Visitante'] }}</td>

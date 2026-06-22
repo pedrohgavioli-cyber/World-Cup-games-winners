@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import time
-from data import obter_estatisticas_historicas
+from data_prep import preparar_estatisticas_equipes
 from odds import obter_proximas_partidas
 from predict import prever_vencedores
 
@@ -17,7 +17,7 @@ cache = {
 
 def get_historical_data_cached(file_path):
     if cache['historical_data'] is None:
-        cache['historical_data'] = obter_estatisticas_historicas(file_path)
+        cache['historical_data'] = preparar_estatisticas_equipes(file_path)
     return cache['historical_data']
 
 def get_odds_cached():
@@ -33,7 +33,7 @@ def index():
     dados_historicos = get_historical_data_cached('results.csv')
 
     # Extract unique team names for the select boxes
-    times = pd.concat([dados_historicos['time1'], dados_historicos['time2']]).unique().tolist()
+    times = list(dados_historicos['forcas_equipes'].keys())
     times.sort()
 
     # Default values
@@ -73,6 +73,9 @@ def index():
                     prob_visitante_pct = df_previsao['prob_visitante'].iloc[0] * 100
                     prob_empate_pct = df_previsao['prob_empate'].iloc[0] * 100
 
+                    xg_casa = df_previsao['xg_casa'].iloc[0]
+                    xg_visitante = df_previsao['xg_visitante'].iloc[0]
+
                     aposta_sugerida = df_previsao['aposta_sugerida'].iloc[0]
                     fracao_kelly = df_previsao['fracao_kelly'].iloc[0]
                     stake = banca * fracao_kelly if fracao_kelly > 0 else 0
@@ -82,6 +85,8 @@ def index():
                         'prob_casa_pct': prob_casa_pct,
                         'prob_visitante_pct': prob_visitante_pct,
                         'prob_empate_pct': prob_empate_pct,
+                        'xg_casa': xg_casa,
+                        'xg_visitante': xg_visitante,
                         'aposta_sugerida': aposta_sugerida,
                         'fracao_kelly': fracao_kelly,
                         'stake': stake,
@@ -103,7 +108,7 @@ def index():
         df_exibicao['prob_visitante'] = (df_exibicao['prob_visitante'] * 100).apply(lambda x: f"{x:.1f}%")
         df_exibicao['prob_empate'] = (df_exibicao['prob_empate'] * 100).apply(lambda x: f"{x:.1f}%")
 
-        df_exibicao = df_exibicao.drop(columns=['fracao_kelly'])
+        df_exibicao = df_exibicao.drop(columns=['fracao_kelly', 'placares_provaveis'])
 
         df_exibicao = df_exibicao.rename(columns={
             'jogo': 'Jogo',
@@ -114,6 +119,8 @@ def index():
             'prob_casa': 'Probabilidade Casa',
             'prob_visitante': 'Probabilidade Visitante',
             'prob_empate': 'Probabilidade Empate',
+            'xg_casa': 'xG Casa',
+            'xg_visitante': 'xG Visitante',
             'aposta_sugerida': 'Aposta Sugerida'
         })
 
