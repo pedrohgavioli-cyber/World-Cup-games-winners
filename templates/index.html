@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsão de Vencedores da Copa do Mundo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1A1A1A;
+            color: #FFFFFF;
+            font-family: sans-serif;
+            padding-bottom: 50px;
+        }
+        .container {
+            max-width: 1200px;
+            margin-top: 30px;
+        }
+        h1, h2, h3 {
+            color: #FFFFFF;
+        }
+        .card {
+            background-color: #2b2b2b;
+            color: #FFFFFF;
+            border: 1px solid #444;
+            margin-bottom: 20px;
+        }
+        .form-control, .form-select {
+            background-color: #333;
+            color: #FFF;
+            border: 1px solid #555;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #444;
+            color: #FFF;
+            border-color: #002776;
+            box-shadow: 0 0 0 0.25rem rgba(0, 39, 118, 0.25);
+        }
+        .btn-primary {
+            background-color: #002776;
+            border-color: #002776;
+        }
+        .btn-primary:hover {
+            background-color: #001a50;
+            border-color: #001a50;
+        }
+        .table {
+            color: #FFFFFF;
+        }
+        .table-striped>tbody>tr:nth-of-type(odd)>* {
+            color: #FFFFFF;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        .table-hover>tbody>tr:hover>* {
+            color: #FFFFFF;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .table thead th {
+            border-bottom: 2px solid #555;
+            background-color: #003300;
+        }
+        .table td, .table th {
+            border-top: 1px solid #444;
+        }
+        .alert-warning {
+            background-color: #ffcc00;
+            color: #000;
+            border-color: #e6b800;
+        }
+        .alert-success {
+            background-color: #003300;
+            color: #FFF;
+            border-color: #004d00;
+        }
+        .alert-info {
+            background-color: #004085;
+            color: #FFF;
+            border-color: #003366;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Previsão de Vencedores da Copa do Mundo</h1>
+
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title">Simular Confronto Específico</h3>
+
+                {% if erro %}
+                <div class="alert alert-warning" role="alert">
+                    {{ erro }}
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="banca" class="form-label">Sua Banca Atual (R$)</label>
+                        <input type="number" step="0.01" min="1.0" class="form-control" id="banca" name="banca" value="{{ banca }}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="time_casa" class="form-label">Time 1 (Casa)</label>
+                            <select class="form-select" id="time_casa" name="time_casa" required>
+                                {% for time in times %}
+                                <option value="{{ time }}" {% if time == time_casa %}selected{% endif %}>{{ time }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="odds_casa" class="form-label">Odds Time 1 (Casa)</label>
+                            <input type="number" step="0.1" min="1.0" class="form-control" id="odds_casa" name="odds_casa" value="{{ odds_casa }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="time_visitante" class="form-label">Time 2 (Visitante)</label>
+                            <select class="form-select" id="time_visitante" name="time_visitante" required>
+                                {% for time in times %}
+                                <option value="{{ time }}" {% if time == time_visitante %}selected{% endif %}>{{ time }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="odds_visitante" class="form-label">Odds Time 2 (Visitante)</label>
+                            <input type="number" step="0.1" min="1.0" class="form-control" id="odds_visitante" name="odds_visitante" value="{{ odds_visitante }}" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Prever Confronto</button>
+                </form>
+
+                {% if resultado_simulacao %}
+                <div class="mt-4">
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">Vencedor Previsto: <strong>{{ resultado_simulacao.vencedor }}</strong></h4>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5><strong>Probabilidades Históricas:</strong></h5>
+                        <ul>
+                            <li>Vitória do <strong>{{ resultado_simulacao.time_casa }}</strong>: {{ "%.1f"|format(resultado_simulacao.prob_casa_pct) }}%</li>
+                            <li><strong>Empate</strong>: {{ "%.1f"|format(resultado_simulacao.prob_empate_pct) }}%</li>
+                            <li>Vitória do <strong>{{ resultado_simulacao.time_visitante }}</strong>: {{ "%.1f"|format(resultado_simulacao.prob_visitante_pct) }}%</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-success">
+                        <strong>Análise de Aposta:</strong> {{ resultado_simulacao.aposta_sugerida }}
+                        {% if resultado_simulacao.fracao_kelly > 0 %}
+                        <br>
+                        <strong>Quantia Sugerida a Apostar (Stake):</strong> R$ {{ "%.2f"|format(resultado_simulacao.stake) }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <hr style="border-color: #555;">
+
+        <div class="mt-4">
+            <h3>Próximas Partidas Oficiais (API de Odds)</h3>
+
+            {% if tabela_proximos_jogos %}
+            <p>Previsões para as próximas partidas:</p>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Jogo</th>
+                            <th>Horário de Início</th>
+                            <th>Média Odds Casa</th>
+                            <th>Média Odds Visitante</th>
+                            <th>Vencedor Previsto</th>
+                            <th>Probabilidade Casa</th>
+                            <th>Probabilidade Visitante</th>
+                            <th>Probabilidade Empate</th>
+                            <th>Aposta Sugerida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for jogo in tabela_proximos_jogos %}
+                        <tr>
+                            <td>{{ jogo['Jogo'] }}</td>
+                            <td>{{ jogo['Horário de Início'] }}</td>
+                            <td>{{ "%.2f"|format(jogo['Média Odds Casa']) if jogo['Média Odds Casa'] == jogo['Média Odds Casa'] else 'N/A' }}</td>
+                            <td>{{ "%.2f"|format(jogo['Média Odds Visitante']) if jogo['Média Odds Visitante'] == jogo['Média Odds Visitante'] else 'N/A' }}</td>
+                            <td>{{ jogo['Vencedor Previsto'] }}</td>
+                            <td>{{ jogo['Probabilidade Casa'] }}</td>
+                            <td>{{ jogo['Probabilidade Visitante'] }}</td>
+                            <td>{{ jogo['Probabilidade Empate'] }}</td>
+                            <td>{{ jogo['Aposta Sugerida'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p>Nenhuma partida futura encontrada.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (optional, for some components if added later) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
