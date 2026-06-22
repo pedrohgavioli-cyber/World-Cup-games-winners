@@ -58,22 +58,21 @@ def preparar_estatisticas_equipes(caminho_arquivo: str = 'results.csv') -> dict:
         'visitante': media_gols_visitante
     }
 
-    # Agregar estatísticas por time mandante
-    stats_casa = df.groupby('home_team').apply(
-        lambda x: pd.Series({
-            'gols_marcados_ponderados': (x['home_score'] * x['peso']).sum(),
-            'gols_sofridos_ponderados': (x['away_score'] * x['peso']).sum(),
-            'peso_total_casa': x['peso'].sum()
-        })
+    # Agregar estatísticas por time mandante de forma otimizada
+    df['home_score_pond'] = df['home_score'] * df['peso']
+    df['away_score_pond'] = df['away_score'] * df['peso']
+
+    stats_casa = df.groupby('home_team').agg(
+        gols_marcados_ponderados=pd.NamedAgg(column='home_score_pond', aggfunc='sum'),
+        gols_sofridos_ponderados=pd.NamedAgg(column='away_score_pond', aggfunc='sum'),
+        peso_total_casa=pd.NamedAgg(column='peso', aggfunc='sum')
     ).reset_index().rename(columns={'home_team': 'time'})
 
-    # Agregar estatísticas por time visitante
-    stats_visitante = df.groupby('away_team').apply(
-        lambda x: pd.Series({
-            'gols_marcados_ponderados': (x['away_score'] * x['peso']).sum(),
-            'gols_sofridos_ponderados': (x['home_score'] * x['peso']).sum(),
-            'peso_total_visitante': x['peso'].sum()
-        })
+    # Agregar estatísticas por time visitante de forma otimizada
+    stats_visitante = df.groupby('away_team').agg(
+        gols_marcados_ponderados=pd.NamedAgg(column='away_score_pond', aggfunc='sum'),
+        gols_sofridos_ponderados=pd.NamedAgg(column='home_score_pond', aggfunc='sum'),
+        peso_total_visitante=pd.NamedAgg(column='peso', aggfunc='sum')
     ).reset_index().rename(columns={'away_team': 'time'})
 
     # Combinar estatísticas
