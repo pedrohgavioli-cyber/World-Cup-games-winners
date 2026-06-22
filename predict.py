@@ -1,56 +1,68 @@
 import pandas as pd
 import numpy as np
-from data import obter_estatisticas_historicas
+import json
+from data_prep import preparar_estatisticas_equipes
+from poisson_model import calcular_probabilidades_partida
 from odds import obter_proximas_partidas
 
-def prever_vencedores(estatisticas_historicas, proximas_partidas):
+def prever_vencedores(dados_modelo: dict, proximas_partidas: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preve os vencedores e probabilidades usando o modelo de Poisson.
+
+    Args:
+        dados_modelo (dict): Estatísticas e médias geradas pelo data_prep.py.
+        proximas_partidas (pd.DataFrame): DataFrame com as próximas partidas.
+
+    Returns:
+        pd.DataFrame: DataFrame contendo as previsões.
+    """
+    media_global = dados_modelo['media_global']
+    forcas_equipes = dados_modelo['forcas_equipes']
 
     previsoes = []
 
     for indice, partida in proximas_partidas.iterrows():
         time_casa, time_visitante = partida['jogo'].split(' vs ')
 
-        # Para encontrar o histórico, normalizamos a ordem dos times
-        time1 = min(time_casa, time_visitante)
-        time2 = max(time_casa, time_visitante)
-
-        # Busca o histórico do confronto
-        historico_confronto = estatisticas_historicas[
-            (estatisticas_historicas['time1'] == time1) &
-            (estatisticas_historicas['time2'] == time2)
-        ]
-
-        previsao = "Sem dados históricos"
-        prob_casa = 0.0
-        prob_visitante = 0.0
-        prob_empate = 0.0
-
-        if not historico_confronto.empty:
-            hist_vitoria_time1 = historico_confronto['vitoria_time1'].iloc[0]
-            hist_vitoria_time2 = historico_confronto['vitoria_time2'].iloc[0]
-            hist_empate = historico_confronto['empate'].iloc[0]
-
-            # Determina qual time histórico corresponde ao time da casa/visitante
-            if time1 == time_casa:
-                prob_casa = hist_vitoria_time1
-                prob_visitante = hist_vitoria_time2
-            else:
-                prob_casa = hist_vitoria_time2
-                prob_visitante = hist_vitoria_time1
+        if time_casa in forcas_equipes and time_visitante in forcas_equipes:
+            forca_ataque_casa = forcas_equipes[time_casa]['forca_ataque_casa']
+            forca_defesa_casa = forcas_equipes[time_casa]['forca_defesa_casa']
             
-            prob_empate = hist_empate
+            forca_ataque_visitante = forcas_equipes[time_visitante]['forca_ataque_visitante']
+            forca_defesa_visitante = forcas_equipes[time_visitante]['forca_defesa_visitante']
 
-            # Lógica de previsão baseada no resultado histórico mais frequente
+            # Calcular probabilidades via Poisson
+            resultado_poisson = calcular_probabilidades_partida(
+                forca_ataque_casa, forca_defesa_casa,
+                forca_ataque_visitante, forca_defesa_visitante,
+                media_global
+            )
+
+            prob_casa = resultado_poisson['prob_vitoria_casa']
+            prob_visitante = resultado_poisson['prob_vitoria_visitante']
+            prob_empate = resultado_poisson['prob_empate']
+            xg_casa = resultado_poisson['xg_casa']
+            xg_visitante = resultado_poisson['xg_visitante']
+            placares_provaveis = resultado_poisson['placares_mais_provaveis']
+
+            # Determinar a previsão
             if prob_casa > prob_visitante and prob_casa > prob_empate:
                 previsao = time_casa
             elif prob_visitante > prob_casa and prob_visitante > prob_empate:
                 previsao = time_visitante
-            elif prob_empate > prob_casa and prob_empate > prob_visitante:
-                previsao = "Empate"
             else:
-                previsao = "Empate (probabilidades iguais)"
+                previsao = "Empate"
+
+        else:
+            previsao = "Sem dados históricos"
+            prob_casa = 0.0
+            prob_visitante = 0.0
+            prob_empate = 0.0
+            xg_casa = 0.0
+            xg_visitante = 0.0
+            placares_provaveis = []
         
-        # Lógica do sugeridor de apostas (Valor Esperado / Expected Value)
+        # Lógica de aposta sugerida (Valor Esperado)
         aposta_sugerida = "Sem dados de odds"
         fracao_kelly = 0.0
 
@@ -61,7 +73,6 @@ def prever_vencedores(estatisticas_historicas, proximas_partidas):
             if ev_casa > 0 and ev_casa >= ev_visitante:
                 fracao_kelly = ev_casa / (partida['media_odds_casa'] - 1)
                 aposta_sugerida = f"Apostar: {time_casa} (EV: +{ev_casa*100:.1f}% | Kelly: {fracao_kelly*100:.1f}%)"
-
             elif ev_visitante > 0 and ev_visitante > ev_casa:
                 fracao_kelly = ev_visitante / (partida['media_odds_visitante'] - 1)
                 aposta_sugerida = f"Apostar: {time_visitante} (EV: +{ev_visitante*100:.1f}% | Kelly: {fracao_kelly*100:.1f}%)"
@@ -77,23 +88,30 @@ def prever_vencedores(estatisticas_historicas, proximas_partidas):
             'prob_casa': prob_casa,
             'prob_visitante': prob_visitante,
             'prob_empate': prob_empate,
+            'xg_casa': xg_casa,
+            'xg_visitante': xg_visitante,
             'aposta_sugerida': aposta_sugerida,
-            'fracao_kelly': fracao_kelly
+            'fracao_kelly': fracao_kelly,
+            'placares_provaveis': placares_provaveis
         })
 
     return pd.DataFrame(previsoes)
 
 if __name__ == '__main__':
-    print("Buscando dados históricos...")
-    dados_historicos = obter_estatisticas_historicas('results.csv')
+    print("Iniciando Módulo de Engenharia de Dados...")
+    dados_modelo = preparar_estatisticas_equipes('results.csv')
 
-    print("Buscando próximas partidas e odds...")
-    proximos_jogos = obter_proximas_partidas()
+    print("Simulando uma partida de teste: Brasil vs Argentina")
+    partida_teste = pd.DataFrame([{
+        'jogo': 'Brazil vs Argentina',
+        'horario_inicio': 'Agora',
+        'media_odds_casa': 2.50,
+        'media_odds_visitante': 3.10
+    }])
 
-    if not proximos_jogos.empty:
-        print("Gerando previsões...")
-        previsoes_finais = prever_vencedores(dados_historicos, proximos_jogos)
-        print("\n--- Previsões das Partidas ---")
-        print(previsoes_finais.to_string())
-    else:
-        print("\nNenhuma partida futura encontrada para prever.")
+    previsao_teste = prever_vencedores(dados_modelo, partida_teste)
+
+    # Exportar para JSON (preparando terreno para API)
+    resultado_json = previsao_teste.to_dict(orient='records')
+    print("\nResultado da Previsão (Formato JSON):")
+    print(json.dumps(resultado_json, indent=4, ensure_ascii=False))
