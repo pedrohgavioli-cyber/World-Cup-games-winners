@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
-import json
 import time
 from data_prep import preparar_estatisticas_equipes
 from odds import obter_proximas_partidas
