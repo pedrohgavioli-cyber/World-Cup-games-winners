@@ -118,13 +118,15 @@ def predict_match():
     """
     try:
         match_data = request.json
-        if not match_data or 'jogo' not in match_data:
-            return jsonify({'erro': 'Dados da partida ausentes.'}), 400
+        banca = float(match_data.get('banca', 10000.0)) # Pega a banca da requisição
+
+        if not match_data or 'jogo' not in match_data or 'partida' not in match_data:
+            return jsonify({'erro': 'Dados da partida ou da banca ausentes.'}), 400
 
         dados_historicos = get_historical_data_cached('results.csv')
 
         # Cria um DataFrame para a partida selecionada
-        partida_df = pd.DataFrame([match_data])
+        partida_df = pd.DataFrame([match_data['partida']])
 
         # Executa a previsão para esta única partida
         previsao_df = prever_vencedores(dados_historicos, partida_df)
@@ -135,9 +137,13 @@ def predict_match():
         # Converte o resultado para um dicionário e prepara para JSON
         resultado = previsao_df.iloc[0].to_dict()
 
+        # Calcula o stake com base na fração de Kelly e na banca
+        fracao_kelly = resultado.get('fracao_kelly', 0.0)
+        resultado['stake'] = banca * fracao_kelly if fracao_kelly > 0 else 0
+
         # O campo 'placares_provaveis' já é uma string JSON, então precisamos decodificá-lo
         # para que o jsonify possa codificá-lo corretamente no objeto de resposta.
-        if 'placares_provaveis' in resultado and isinstance(resultado['placares_provaveis'], str):
+        if 'placares_provaveis' in resultado and isinstance(resultado.get('placares_provaveis'), str):
             resultado['placares_provaveis'] = json.loads(resultado['placares_provaveis'])
 
         return jsonify(resultado)

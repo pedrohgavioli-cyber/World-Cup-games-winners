@@ -168,7 +168,11 @@
                         <select id="match-selector" class="form-select">
                             <option value="" selected disabled>Escolha uma partida para analisar...</option>
                             {% for jogo in proximos_jogos %}
-                                <option value="{{ loop.index0 }}">{{ jogo.jogo }}</option>
+                                <!-- Adiciona mais detalhes a cada opção para dar contexto ao usuário -->
+                                <option value="{{ loop.index0 }}">
+                                    {{ jogo.jogo }} ({{ jogo.horario_inicio }}) - Odds: Casa={{ "%.2f"|format(jogo.media_odds_casa) if jogo.media_odds_casa == jogo.media_odds_casa else 'N/A' }}, 
+                                    Vis.={{ "%.2f"|format(jogo.media_odds_visitante) if jogo.media_odds_visitante == jogo.media_odds_visitante else 'N/A' }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -204,6 +208,11 @@
                             <ul class="list-group list-group-flush" id="top-scores">
                                 <!-- Placares serão inseridos aqui via JS -->
                             </ul>
+                            <hr>
+                            <div class="alert alert-info mt-3" id="bet-suggestion-container" style="display: none;">
+                                <h6>Aposta Sugerida:</h6>
+                                <p id="bet-suggestion"></p>
+                            </div>
                         </div>
                     </div>
                 {% else %}
@@ -222,6 +231,7 @@
         document.getElementById('match-selector').addEventListener('change', function() {
             const selectedIndex = this.value;
             if (!selectedIndex) return;
+            if (selectedIndex === "") return;
 
             const selectedMatch = proximosJogos[selectedIndex];
             const loader = document.getElementById('loader');
@@ -231,13 +241,19 @@
             loader.style.display = 'block';
             resultCard.style.display = 'none';
 
+            // Pega o valor da banca do formulário de simulação
+            const bancaValue = document.getElementById('banca').value;
+
             // Chama o endpoint de previsão no backend
             fetch('/predict_match', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(selectedMatch),
+                body: JSON.stringify({
+                    partida: selectedMatch,
+                    banca: bancaValue
+                }),
             })
             .then(response => {
                 if (!response.ok) {
@@ -261,25 +277,41 @@
                 const topScoresList = document.getElementById('top-scores');
                 topScoresList.innerHTML = ''; // Limpa placares anteriores
                 
-                // Verifica se 'placares_mais_provaveis' existe e é um array
-                if (data.placares_mais_provaveis && Array.isArray(data.placares_mais_provaveis)) {
-                    data.placares_mais_provaveis.forEach(score => {
+                // Verifica se 'placares_provaveis' existe e é um array
+                if (data.placares_provaveis && Array.isArray(data.placares_provaveis) && data.placares_provaveis.length > 0) {
+                    data.placares_provaveis.slice(0, 5).forEach(score => { // Limita a 5 placares
                         const listItem = document.createElement('li');
                         listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                         listItem.innerText = `Placar: ${score.placar}`;
                         
                         const probabilitySpan = document.createElement('span');
-                        probabilitySpan.className = 'badge bg-primary rounded-pill';
+                        probabilitySpan.className = 'badge bg-success rounded-pill';
                         probabilitySpan.innerText = `${(score.probabilidade * 100).toFixed(2)}%`;
                         
                         listItem.appendChild(probabilitySpan);
                         topScoresList.appendChild(listItem);
                     });
                 } else {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item';
-                    listItem.innerText = 'Não há placares prováveis disponíveis.';
-                    topScoresList.appendChild(listItem);
+                    topScoresList.innerHTML = '<li class="list-group-item">Não há placares prováveis disponíveis.</li>';
+                }
+
+                // Popula a sugestão de aposta
+                const betSuggestionContainer = document.getElementById('bet-suggestion-container');
+                const betSuggestionP = document.getElementById('bet-suggestion');
+                if (data.aposta_sugerida && data.aposta_sugerida !== "Nenhuma aposta de valor") {
+                    let suggestionText = `<strong>${data.aposta_sugerida}</strong>`;
+                    if (data.stake && data.stake > 0) {
+                        suggestionText += `<br><strong>Stake Sugerido:</strong> R$ ${data.stake.toFixed(2)}`;
+                    }
+                    betSuggestionP.innerHTML = suggestionText;
+                    betSuggestionContainer.classList.remove('alert-info');
+                    betSuggestionContainer.classList.add('alert-success');
+                    betSuggestionContainer.style.display = 'block';
+                } else {
+                    betSuggestionP.innerText = "Nenhuma aposta de valor encontrada.";
+                    betSuggestionContainer.classList.remove('alert-success');
+                    betSuggestionContainer.classList.add('alert-info');
+                    betSuggestionContainer.style.display = 'block';
                 }
 
 
